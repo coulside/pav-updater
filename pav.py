@@ -41,7 +41,7 @@ COORDINATES_FILE = "coordinates.json"
 
 UPDATE_INFO_URL = "https://drive.google.com/uc?export=download&id=1LKblrIM0HpvZ4JLs_LvreBOwsMlT0mUw"
 SCRIPT_PATH = os.path.abspath(sys.argv[0])  
-CURRENT_VERSION = "1.0.0" 
+CURRENT_VERSION = "0.1" 
 
 def auto_update():
     try:
