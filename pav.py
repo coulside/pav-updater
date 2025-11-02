@@ -66,8 +66,9 @@ def auto_update():
 
         print(f"Найдена новая версия: {latest_version}")
         messagebox.showinfo(
-            "Обновление найдено",
-            f"Доступна новая версия: {latest_version}\nТекущая: {CURRENT_VERSION}\nСкачиваю обновление..."
+            #"Обновление найдено",
+            "Найдено новое обновление",
+            f"Доступна новая версия: {latest_version}\nТекущая: {CURRENT_VERSION}\n."
         )
 
         new_file_path = SCRIPT_PATH + ".new"
@@ -93,11 +94,12 @@ def auto_update():
         os.replace(new_file_path, SCRIPT_PATH)
         print("Обновление установлено!")
 
-        messagebox.showinfo("Обновление завершено", "Программа будет перезапущена.")
+        #messagebox.showinfo("Обновление завершено", "Программа будет перезапущена.")
         restart_script()
 
     except Exception as e:
         messagebox.showerror("Ошибка обновления", str(e))
+        webbrowser.open_new_tab(TG_URL)  
         print("Ошибка автообновления:", e)
 
 def restart_script():
@@ -378,6 +380,37 @@ class AutoPavilionApp(customtkinter.CTk):
         
         self.load_coordinates() 
         self.draw_rectangle_preview() 
+    
+    def custom_showinfo(title, message):
+        window = ctk.CTkToplevel()
+        window.title(title)
+        window.geometry("400x200")
+        window.resizable(False, False)
+        window.configure(fg_color=BG_COLOR)  # твой тёмный фон
+    
+        label = ctk.CTkLabel(
+            window, 
+            text=message, 
+            font=("Segoe UI", 14),
+            text_color=TEXT_COLOR,
+            wraplength=350
+        )
+        label.pack(pady=40, padx=20)
+    
+        ok_button = ctk.CTkButton(
+            window, 
+            text="OK", 
+            command=window.destroy,
+            fg_color=ACCENT_COLOR,
+            hover_color=HOVER_COLOR,
+            width=100
+        )
+        ok_button.pack(pady=10)
+    
+        # Сделать модальным (блокирует родительское окно)
+        window.grab_set()
+        window.focus_set()
+        window.wait_window()
         
        
     def open_telegram_link(self, event):
