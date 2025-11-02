@@ -34,6 +34,7 @@ SUBTEXT_COLOR = "#aaaaaa"
 ACCENT_COLOR = "#4CAF50"     
 HOVER_COLOR = "#5FD469"
 ERROR_COLOR = "#E74C3C"   
+RECTANGLE_COLOR = "#E74C3C"   
 BUTTON_COLOR = "#4CAF50"    
 COORDINATES_FILE = "coordinates.json"
 
@@ -144,11 +145,12 @@ def check_license():
             blocked = cells[3]["v"] if len(cells) > 3 and cells[3] else None
 
             if sheet_serial == serial:
-                if blocked and blocked.lower() == "да":
+                blocked_values = ["да", "+", "передача", "махинации"]  # все варианты блокировки
+                if blocked and blocked.lower() in blocked_values:                
                     print("Лицензия заблокирована!")
                     messagebox.showerror(
                         "Лицензия заблокирована",
-                        f"Вы заблокированы. Причина: {blocked}"
+                        f"Лицензия заблокирована!\nПричина: {blocked}"
                     )
                     sys.exit()  
                 
@@ -187,7 +189,7 @@ def check_license():
         root.withdraw()
         result = messagebox.askokcancel(
             "Лицензия не найдена",
-            f"Не обнаружена лицензия.\nВаш токен (серийник): {serial}\nПередайте его создателю: t.me/kost2ya\nНажмите OK чтобы скопировать токен в буфер."
+            f"Не обнаружена лицензия.\nВаш токен: {serial}\nПередайте его создателю: t.me/kost2ya\nНажмите OK чтобы скопировать токен."
         )
         if result:
             copy_to_clipboard(str(serial))
@@ -281,7 +283,7 @@ class AutoPavilionApp(customtkinter.CTk):
         if self.license_expiry_date:
             self.license_label = customtkinter.CTkLabel(
                 self.main_frame,  
-                text=f"Лицензия активна: {self.license_expiry_date.strftime('%d-%m-%Y')}",
+                text=f"Лицензия до: {self.license_expiry_date.strftime('%d-%m-%Y')}",
                 font=("Segoe UI", 12),
                 text_color="#FFFFFF"
             )
@@ -296,9 +298,30 @@ class AutoPavilionApp(customtkinter.CTk):
        
         self.license_label.place(
             x=self.main_frame.winfo_width() - self.license_label.winfo_width() - -360,  
-            y=20 
+            y=10 
         )
-
+        
+        self.close_button = tk.Label(
+            self,
+            text="✖",
+            font=("Segoe UI", 14, "bold"),
+            bg="#1e1e1e",    
+            fg="#ffffff",
+            cursor="hand2"
+        )
+         
+        self.update_idletasks()  
+        self.close_button.place(
+            x=self.winfo_width() - -500, 
+            y=10,
+            width=30,
+            height=30
+        )
+        
+        self.close_button.bind("<Enter>", lambda e: self.close_button.config(bg="#E74C3C"))
+        self.close_button.bind("<Leave>", lambda e: self.close_button.config(bg="#aaaaaa"))
+        
+        self.close_button.bind("<Button-1>", lambda e: self.destroy())
         self.status_label = customtkinter.CTkLabel(
             self.main_frame,
             textvariable=self.status_text,
@@ -514,7 +537,7 @@ class AutoPavilionApp(customtkinter.CTk):
         self.overlay.bind("<ButtonPress-1>", self.start_move_overlay)
         self.overlay.bind("<B1-Motion>", self.do_move_overlay)
     
-    
+   
     def start_move_overlay(self, event): 
         self.x = event.x_root
         self.y = event.y_root
@@ -606,10 +629,11 @@ class AutoPavilionApp(customtkinter.CTk):
 
     def clear_coordinates(self): 
         self.red_box_coordinates = None
-        self.save_coordinates()
-        self.status_text.set("Координаты очищены.")
+        #self.status_text.set("Координаты очищены.")
         self.log("Координаты очищены")
-        self.rectangle_canvas.delete("all")
+       # self.rectangle_canvas.delete("all")
+        self.draw_rectangle_preview()
+       # self.save_coordinates()
 
     def draw_rectangle_preview(self):
         try:
