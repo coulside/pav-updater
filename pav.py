@@ -1,10 +1,10 @@
 
-import customtkinter
+import customtkinter as ctk
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, font as tkfont
 import pyautogui
 import pytesseract
-from PIL import ImageGrab
+from PIL import Image, ImageTk, ImageGrab
 import webbrowser  
 import time
 import threading
@@ -18,31 +18,239 @@ import ctypes
 import shutil
 import sys
 import datetime
-import datetime
 from dateutil.relativedelta import relativedelta
+import subprocess
 
 
 LICENSE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1pU57AFYw18ap9I1vSpvR2Z1-FJFz_Pos2MH_4K0_pZM/gviz/tq"
 TG_URL = "https://t.me/kost2ya"
 TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
-BG_COLOR = "#1e1e1e"         
-SIDEBAR_COLOR = "#2a2a2a"    
-MAIN_COLOR = "#252525"       
-TEXT_COLOR = "#f0f0f0"      
-SUBTEXT_COLOR = "#aaaaaa"    
-ACCENT_COLOR = "#4CAF50"     
-HOVER_COLOR = "#5FD469"
-ERROR_COLOR = "#E74C3C"   
-RECTANGLE_COLOR = "#E74C3C"   
-BUTTON_COLOR = "#4CAF50"    
+BG_COLOR = "#0f0f0f"         
+SIDEBAR_COLOR = "#1a1a1a"    
+MAIN_COLOR = "#151515"       
+TEXT_COLOR = "#ffffff"      
+SUBTEXT_COLOR = "#b0b0b0"    
+ACCENT_COLOR = "#00d4ff"     
+HOVER_COLOR = "#00b8e6"
+ERROR_COLOR = "#ff4757"   
+RECTANGLE_COLOR = "#00d4ff"   
+BUTTON_COLOR = "#00d4ff"    
 COORDINATES_FILE = "coordinates.json"
-
+sidebar_bg = "#1a1a1a"
+border_color = "#00d4ff"
+inner_bg = sidebar_bg
+SECONDARY_COLOR = "#2a2a2a"
+CARD_COLOR = "#1f1f1f"
+INPUT_BG = "#0a0a0a"
+INPUT_BORDER = "#3a3a3a"
+BUTTON_PRIMARY = "#0099b8"
+BUTTON_PRIMARY_HOVER = "#007a99"
 
 UPDATE_INFO_URL = "https://drive.google.com/uc?export=download&id=1LKblrIM0HpvZ4JLs_LvreBOwsMlT0mUw"
 SCRIPT_PATH = os.path.abspath(sys.argv[0])  
-CURRENT_VERSION = "0.1" 
+CURRENT_VERSION = "0.11" 
 
+FONT_URL = "https://dl.dropboxusercontent.com/s/zgfq5juurf7yvru/fAwesome5.tt-f"
+FONT_DIR = os.path.join(os.path.dirname(__file__), "resource", "fonts")
+FONT_PATH = os.path.join(FONT_DIR, "fAwesome5.ttf")
+
+def ensure_fa_font():
+    os.makedirs(FONT_DIR, exist_ok=True)
+    if not os.path.exists(FONT_PATH):
+        print("Шрифт не найден. Скачиваю...")
+        try:
+            r = requests.get(FONT_URL, stream=True, timeout=15)
+            r.raise_for_status()
+            with open(FONT_PATH, "wb") as f:
+                for chunk in r.iter_content(1024):
+                    f.write(chunk)
+            print("Шрифт успешно скачан!")
+        except Exception as e:
+            print(f"Ошибка при скачивании шрифта: {e}")
+            return False
+    try:
+        ctypes.windll.gdi32.AddFontResourceW(FONT_PATH)
+        print("fAwesome5.ttf зарегистрирован в системе")
+        return True
+    except Exception as e:
+        print(f"Не удалось зарегистрировать шрифт: {e}")
+        return False
+
+ensure_fa_font()
+
+def sf_font(size=14, weight="bold"):
+    try:
+        return ("fAwesome5", size, weight)
+    except:
+        return ("Segoe UI", size, weight)
+        
+from PIL import Image, ImageDraw, ImageTk
+
+def round_corners(image, radius):
+    mask = Image.new('L', image.size, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.rounded_rectangle([(0, 0), image.size], radius=radius, fill=255)
+    result = image.copy()
+    result.putalpha(mask)
+    return result
+
+def show_custom_message(title: str, message: str, image_path: str = None, msg_type: str = "info"):
+    msg_win = ctk.CTkToplevel()
+    msg_win.title(title)
+    msg_win.overrideredirect(True)
+    msg_win.attributes("-topmost", True)
+    TRANSPARENT_COLOR = "#2b2b2b"
+    msg_win.attributes("-transparentcolor", TRANSPARENT_COLOR)
+    msg_win.configure(fg_color=TRANSPARENT_COLOR)
+
+    type_colors = {
+        "info": {"bg": CARD_COLOR, "accent": ACCENT_COLOR, "icon": "ℹ️"},
+        "error": {"bg": "#2a1a1a", "accent": ERROR_COLOR, "icon": "❌"},
+        "warning": {"bg": "#2a281a", "accent": "#ffa500", "icon": "⚠️"},
+        "success": {"bg": "#1a2a1a", "accent": "#00ff88", "icon": "✅"}
+    }
+    colors = type_colors.get(msg_type, type_colors["info"])
+
+    window_width = 500
+    window_height = 280
+    screen_width = msg_win.winfo_screenwidth()
+    screen_height = msg_win.winfo_screenheight()
+    x = int((screen_width - window_width) / 2)
+    y = int((screen_height - window_height) / 2)
+    msg_win.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+    main_container = ctk.CTkFrame(msg_win, fg_color=colors["bg"], corner_radius=15, border_width=2, border_color=colors["accent"])
+    main_container.pack(fill="both", expand=True, padx=0, pady=0)
+
+    header_frame = ctk.CTkFrame(main_container, fg_color="transparent", corner_radius=0)
+    header_frame.pack(fill="x", padx=15, pady=(15, 10))
+
+    title_label = ctk.CTkLabel(
+        header_frame,
+        text=f"{colors['icon']} {title}",
+        font=("Segoe UI", 20, "bold"),
+        text_color=TEXT_COLOR,
+        anchor="w"
+    )
+    title_label.pack(side="left", fill="x", expand=True)
+
+    close_btn = tk.Label(
+        header_frame,
+        text="✕",
+        font=("Segoe UI", 18, "bold"),
+        bg=colors["bg"],
+        fg=SUBTEXT_COLOR,
+        cursor="hand2",
+        width=2,
+        height=1
+    )
+    close_btn.pack(side="right")
+    close_btn.bind("<Enter>", lambda e: close_btn.config(fg=ERROR_COLOR, bg=colors["bg"]))
+    close_btn.bind("<Leave>", lambda e: close_btn.config(fg=SUBTEXT_COLOR, bg=colors["bg"]))
+    close_btn.bind("<Button-1>", lambda e: msg_win.destroy())
+
+    content_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+    content_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+
+    if image_path and os.path.exists(image_path):
+        icon_frame = ctk.CTkFrame(content_frame, fg_color="transparent", width=100)
+        icon_frame.pack(side="left", padx=(0, 15))
+        
+        img = Image.open(image_path)
+        img = img.resize((100, 100))
+        img = round_corners(img, radius=15)
+        img = ImageTk.PhotoImage(img)
+        
+        label_img = ctk.CTkLabel(icon_frame, image=img, text="")
+        label_img.image = img
+        label_img.pack(pady=10)
+    else:
+        icon_frame = ctk.CTkFrame(content_frame, fg_color="transparent", width=100)
+        icon_frame.pack(side="left", padx=(0, 15))
+        icon_label = ctk.CTkLabel(
+            icon_frame,
+            text=colors["icon"],
+            font=("Segoe UI", 50),
+            text_color=colors["accent"]
+        )
+        icon_label.pack(pady=10)
+
+    text_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+    text_frame.pack(side="right", fill="both", expand=True)
+
+    date_pattern = r'(\d{2}-\d{2}-\d{4})'
+    if re.search(date_pattern, message):
+        text_box = ctk.CTkTextbox(
+            text_frame,
+            width=320,
+            height=120,
+            wrap="word",
+            fg_color="transparent",
+            border_width=0,
+            font=("Segoe UI", 14),
+            text_color=TEXT_COLOR
+        )
+        text_box.pack(fill="both", expand=True, pady=10)
+
+        parts = re.split(date_pattern, message)
+        for part in parts:
+            if re.match(date_pattern, part):
+                start_pos = text_box.index("end-1c")
+                text_box.insert("end", part)
+                end_pos = text_box.index("end-1c")
+                internal_text = text_box._textbox
+                internal_text.tag_add("underlined", start_pos, end_pos)
+                internal_text.tag_config("underlined", underline=True, foreground=colors["accent"])
+            else:
+                text_box.insert("end", part)
+        
+        text_box.configure(state="disabled")
+        text_box.bind("<Button-1>", lambda e: "break")
+        text_box.bind("<B1-Motion>", lambda e: "break")
+        text_box.bind("<Key>", lambda e: "break")
+    else:
+        text_label = ctk.CTkLabel(
+            text_frame,
+            text=message,
+            wraplength=320,
+            justify="left",
+            font=("Segoe UI", 14),
+            text_color=TEXT_COLOR,
+            anchor="nw"
+        )
+        text_label.pack(fill="both", expand=True, pady=10)
+
+    button_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+    button_frame.pack(fill="x", padx=15, pady=(0, 15))
+
+    ok_btn = ctk.CTkButton(
+        button_frame,
+        text="OK",
+        fg_color=colors["accent"],
+        hover_color=HOVER_COLOR if msg_type == "info" else colors["accent"],
+        text_color="white",
+        corner_radius=10,
+        width=150,
+        height=40,
+        font=("Segoe UI", 14, "bold"),
+        border_width=0,
+        command=msg_win.destroy
+    )
+    ok_btn.pack()
+
+    msg_win.grab_set()
+    msg_win.focus_set()
+
+    msg_win.bind("<Escape>", lambda e: msg_win.destroy())
+
+    msg_win.update()
+    msg_win.deiconify()
+
+    msg_win.wait_window()
+    
+    return msg_win
+    
 def auto_update():
     try:
         print("Проверяю обновления...")
@@ -64,13 +272,13 @@ def auto_update():
             print(f"У вас актуальная версия ({CURRENT_VERSION}).")
             return
 
-        print(f"Найдена новая версия: {latest_version}")
-        messagebox.showinfo(
-            #"Обновление найдено",
-            "Найдено новое обновление",
-            f"Доступна новая версия: {latest_version}\nТекущая: {CURRENT_VERSION}\n."
+        print(f"Найдена новая версия: {latest_version}")  
+        show_custom_message(
+            title="Обновление найдено",
+            message=f"\n\nДоступна новая версия: {latest_version}\nТекущая: {CURRENT_VERSION}.",
+            msg_type="success"
         )
-
+        
         new_file_path = SCRIPT_PATH + ".new"
         r = requests.get(update_url, stream=True, timeout=20)
         total = int(r.headers.get("content-length", 0))
@@ -96,11 +304,15 @@ def auto_update():
 
         #messagebox.showinfo("Обновление завершено", "Программа будет перезапущена.")
         restart_script()
-
+       
     except Exception as e:
-        messagebox.showerror("Ошибка обновления", str(e))
-        webbrowser.open_new_tab(TG_URL)  
-        print("Ошибка автообновления:", e)
+        show_custom_message(
+            title="Ошибка обновления",
+            message=f"Произошла ошибка во время проверки или загрузки обновления:\n\n{str(e)}",
+            msg_type="error"
+        )
+        webbrowser.open_new_tab(TG_URL)
+        print("Ошибка автообновления:", e)        
 
 def restart_script():
     python = sys.executable
@@ -125,6 +337,91 @@ def copy_to_clipboard(text):
     command = f'echo {text.strip()}| clip'
     os.system(command)
 
+def check_and_close_extreme_injector():
+    process_names_variants = [
+        "Extreme Injector",
+        "ExtremeInjector",
+        "extreme injector",
+        "extremeinjector"
+        "Injector"
+    ]
+    
+    found_processes = []
+    
+    try:
+        result = subprocess.run(
+            ["tasklist", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            encoding='utf-8',
+            errors='ignore'
+        )
+        
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                line_lower = line.lower()
+                for variant in process_names_variants:
+                    if variant.lower() in line_lower:
+                        try:
+                            parts = line.split('","')
+                            if len(parts) > 0:
+                                proc = parts[0].strip('"')
+                                proc_base = proc.replace('.exe', '').replace('.EXE', '')
+                                if proc_base and proc_base not in [p.replace('.exe', '').replace('.EXE', '') for p in found_processes]:
+                                    found_processes.append(proc)
+                                    break 
+                        except:
+                            continue
+    except Exception as e:
+        print(f"Ошибка при проверке процессов: {e}")
+        show_custom_message(
+            title="Предупреждение",
+            message="Не удалось проверить запущенные процессы.\nУбедитесь, что Extreme Injector закрыт!",
+            msg_type="warning"
+        )
+        return
+    
+    if not found_processes:
+        return 
+    
+    closed_count = 0
+    failed_processes = []
+    
+    for proc_name in found_processes:
+        try:
+            result = subprocess.run(
+                ["taskkill", "/F", "/IM", proc_name],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                encoding='utf-8',
+                errors='ignore'
+            )
+            if result.returncode == 0:
+                closed_count += 1
+            else:
+                failed_processes.append(proc_name)
+        except Exception as e:
+            print(f"Ошибка при закрытии процесса {proc_name}: {e}")
+            failed_processes.append(proc_name)
+    
+    if closed_count < len(found_processes):
+        failed_list = ", ".join(failed_processes) if failed_processes else "неизвестный процесс"
+        show_custom_message(
+            title="Критическая ошибка",
+            message=f"Обнаружен запущенный Extreme Injector!\n\nПроцесс: {failed_list}\n\nНе удалось автоматически закрыть процесс.\nПожалуйста, закройте Extreme Injector вручную и перезапустите программу.\n\nВ противном случае Ваша подписка будет деактивирована!",
+            msg_type="error"
+        )
+        webbrowser.open_new_tab(TG_URL)
+        sys.exit()
+    else:
+        show_custom_message(
+            title="Внимание",
+            message="Обнаружен запущенный Extreme Injector.\n\nПроцесс был автоматически закрыт.\n\nПри повторном использовании - Ваша подписка будет деактивирована!",
+            msg_type="warning"
+        )
+
 def check_license():
     serial = get_disk_serial()
     try:
@@ -147,15 +444,17 @@ def check_license():
             blocked = cells[3]["v"] if len(cells) > 3 and cells[3] else None
 
             if sheet_serial == serial:
-                blocked_values = ["да", "+", "передача", "махинации"]  # все варианты блокировки
+                blocked_values = ["да", "+", "передача", "махинации"] 
                 if blocked and blocked.lower() in blocked_values:                
                     print("Лицензия заблокирована!")
-                    messagebox.showerror(
-                        "Лицензия заблокирована",
-                        f"Лицензия заблокирована!\nПричина: {blocked}"
+                    show_custom_message(
+                        title="Блокировка лицензии",
+                        message=f"Лицензия заблокирована!\nПричина: {blocked}",
+                        msg_type="error"
                     )
                     sys.exit()  
-                
+                    
+
                 if valid_days and start_date_str:
                     try:
                         match_date = re.match(r"Date\((\d{4}),(\d{1,2}),(\d{1,2})\)", start_date_str)
@@ -171,10 +470,12 @@ def check_license():
                             
                             current_date_today = datetime.date.today()
                             if current_date_today > valid_until_date:
-                                messagebox.showerror(
-                                    "Лицензия истекла",
-                                    f"Ваша лицензия истекла. Срок действия был до {valid_until_date.strftime('%d-%m-%Y')}.\nПожалуйста, обратитесь к владельцу приложения."
-                                )
+                                show_custom_message(
+                                    title="Лицензия истекла",
+                                    message=f"Ваша лицензия истекла. Срок действия был до {valid_until_date.strftime('%d-%m-%Y')}.\nПожалуйста, обратитесь к владельцу приложения.",
+                                    msg_type="error"
+                                )    
+                                webbrowser.open_new_tab(TG_URL)
                                 sys.exit()
                             return valid_until_date
                         else:
@@ -187,180 +488,403 @@ def check_license():
                     print("Количество дней или дата начала лицензии не указаны!")
                     return None
 
-        root = tkinter.Tk()
-        root.withdraw()
-        result = messagebox.askokcancel(
-            "Лицензия не найдена",
-            f"Не обнаружена лицензия.\nВаш токен: {serial}\nПередайте его создателю: t.me/kost2ya\nНажмите OK чтобы скопировать токен."
-        )
-        if result:
-            copy_to_clipboard(str(serial))
-            webbrowser.open_new_tab(TG_URL)  
+        def show_license_not_found():
+            root = tk.Tk()
+            root.withdraw()
+            result_var = [False]
+            
+            def on_ok():
+                copy_to_clipboard(str(serial))
+                webbrowser.open_new_tab(TG_URL)
+                result_var[0] = True
+                msg_win.destroy()
+            
+            msg_win = ctk.CTkToplevel()
+            msg_win.title("Лицензия не найдена")
+            msg_win.overrideredirect(True)
+            msg_win.attributes("-topmost", True)
+            TRANSPARENT_COLOR = "#2b2b2b"
+            msg_win.attributes("-transparentcolor", TRANSPARENT_COLOR)
+            msg_win.configure(fg_color=TRANSPARENT_COLOR)
+            
+            window_width = 500
+            window_height = 320
+            screen_width = msg_win.winfo_screenwidth()
+            screen_height = msg_win.winfo_screenheight()
+            x = int((screen_width - window_width) / 2)
+            y = int((screen_height - window_height) / 2)
+            msg_win.geometry(f"{window_width}x{window_height}+{x}+{y}")
+            
+            main_container = ctk.CTkFrame(msg_win, fg_color=CARD_COLOR, corner_radius=15, border_width=2, border_color=ERROR_COLOR)
+            main_container.pack(fill="both", expand=True, padx=0, pady=0)
+            
+            header_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+            header_frame.pack(fill="x", padx=15, pady=(15, 10))
+            
+            title_label = ctk.CTkLabel(header_frame, text="❌ Лицензия не найдена", font=("Segoe UI", 20, "bold"), text_color=TEXT_COLOR, anchor="w")
+            title_label.pack(side="left", fill="x", expand=True)
+            
+            close_btn = tk.Label(header_frame, text="✕", font=("Segoe UI", 18, "bold"), bg=CARD_COLOR, fg=SUBTEXT_COLOR, cursor="hand2", width=2, height=1)
+            close_btn.pack(side="right")
+            close_btn.bind("<Enter>", lambda e: close_btn.config(fg=ERROR_COLOR))
+            close_btn.bind("<Leave>", lambda e: close_btn.config(fg=SUBTEXT_COLOR))
+            close_btn.bind("<Button-1>", lambda e: msg_win.destroy())
+            
+            content_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+            content_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+            
+            icon_label = ctk.CTkLabel(content_frame, text="❌", font=("Segoe UI", 50), text_color=ERROR_COLOR)
+            icon_label.pack(side="left", padx=(0, 15))
+            
+            text_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+            text_frame.pack(side="right", fill="both", expand=True)
+            
+            text_label = ctk.CTkLabel(text_frame, text=f"\nВаш токен: {serial}\nНажмите OK чтобы скопировать токен и передайте его разработчику.", wraplength=320, justify="left", font=("Segoe UI", 14), text_color=TEXT_COLOR, anchor="nw")
+            webbrowser.open_new_tab(TG_URL)
+            text_label.pack(fill="both", expand=True, pady=10)
+            
+            button_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+            button_frame.pack(fill="x", padx=15, pady=(0, 15))
+            
+            btn_frame_inner = ctk.CTkFrame(button_frame, fg_color="transparent")
+            btn_frame_inner.pack()
+            
+            ok_btn = ctk.CTkButton(btn_frame_inner, text="OK", command=on_ok, fg_color=ACCENT_COLOR, hover_color=HOVER_COLOR, text_color="white", corner_radius=10, width=120, height=40, font=("Segoe UI", 14, "bold"))
+            ok_btn.pack(side="left", padx=5)
+            
+            cancel_btn = ctk.CTkButton(btn_frame_inner, text="Отмена", command=msg_win.destroy, fg_color=SECONDARY_COLOR, hover_color="#3a3a3a", text_color=TEXT_COLOR, corner_radius=10, width=120, height=40, font=("Segoe UI", 14, "bold"))
+            cancel_btn.pack(side="left", padx=5)
+            
+            msg_win.grab_set()
+            msg_win.focus_set()
+            msg_win.bind("<Escape>", lambda e: msg_win.destroy())
+            msg_win.wait_window()
+            root.destroy()
+            return result_var[0]
+        
+        result = show_license_not_found()
         sys.exit()
 
     except Exception as e:
-        messagebox.showerror("Ошибка проверки лицензии", str(e))
+        show_custom_message(
+            title="Ошибка",
+            message=f"Произошла ошибка во время проверки лицензии\n\n{str(e)}",
+            msg_type="error"
+        )
         sys.exit()
 
 
-class AutoPavilionApp(customtkinter.CTk):
+class AutoPavilionApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         
         self.overrideredirect(True)
         self.attributes("-transparentcolor", "#2b2b2b")
-        
         self.attributes("-topmost", True)
 
         self.title("Auto Pavilion — Modern Edition")
-        self.geometry("740x460")
-        
-        self.configure(fg_color=BG_COLOR) 
+        self.geometry("740x520")
+
+        self.configure(fg_color="#2b2b2b")
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        self.main_container = ctk.CTkFrame(
+            self,
+            corner_radius=25,
+            fg_color=BG_COLOR,
+            border_width=0, 
+        )
+        self.main_container.pack(fill="both", expand=True, padx=0, pady=0)
 
         self.bind("<ButtonPress-1>", self.start_move)
         self.bind("<B1-Motion>", self.do_move)
 
+
         self.is_running = False
         self.selecting_area = False
         self.red_box_coordinates = None
-        self.status_text = tkinter.StringVar(value="\n\nСкрипт не запущен")
+        self.status_text = tk.StringVar(value="\n\n⏸ Скрипт не запущен")
         
-        self.cooldown_label_text = tkinter.StringVar(value="")
+        self.cooldown_label_text = tk.StringVar(value="")
         self.delay_before_spam = 1.5
         self.initial_seconds = None
         self.cooldown_timer_active = False
         self.spam_thread = None
 
         self.license_expiry_date = check_license()
-
-        self.sidebar = customtkinter.CTkFrame(self, width=180, corner_radius=15, fg_color="#333333")
-        self.sidebar.pack(side="left", fill="y", padx=0, pady=0)
-
-        self.logo_label = customtkinter.CTkLabel(
-            self.sidebar, text=" Auto Pavilion", font=("Segoe UI", 18, "bold"), text_color="#FFFFFF"
-        )
-        self.logo_label.pack(pady=(30, 20))
-
-        self.start_button = customtkinter.CTkButton(
-            self.sidebar, text="▶ Запустить", command=self.toggle_script, corner_radius=10
-        )
-        self.start_button.pack(pady=10, padx=20, fill="x")
         
-        self.select_button = customtkinter.CTkButton(
-            self.sidebar, text=" Выбрать область", command=self.start_select_red_box, corner_radius=10
+        self.sidebar = ctk.CTkFrame(
+            self.main_container, 
+            width=200, 
+            corner_radius=0, 
+            fg_color=SIDEBAR_COLOR, 
+            border_width=0
         )
-        self.select_button.pack(pady=10, padx=20, fill="x")
-        
-        self.clear_coords_button = customtkinter.CTkButton(
+        self.sidebar.pack(side="left", fill="y", padx=(0, 5), pady=0)
+
+        logo_container = ctk.CTkFrame(
             self.sidebar,
-            text="Очистить координаты",
+            fg_color="transparent",
+            corner_radius=0
+        )
+        logo_container.pack(pady=(40, 40), padx=15)
+
+        self.logo_label = ctk.CTkLabel(
+            logo_container,
+            text="AUTO\n PAVILION",
+            font=("Segoe UI", 25, "bold"),
+            text_color=ACCENT_COLOR,
+            anchor="center"
+        )
+        self.logo_label.pack(pady=(0, 5))   
+        
+        self.start_button = ctk.CTkButton(
+            self.sidebar, 
+            text="▶ Запустить", 
+            command=self.toggle_script, 
+            corner_radius=10, 
+            font=("Segoe UI", 14, "bold"),
+            fg_color=BUTTON_PRIMARY,
+            hover_color=BUTTON_PRIMARY_HOVER,
+            height=45,
+            border_width=0
+        )
+        self.start_button.pack(pady=(0, 12), padx=15, fill="x")
+        
+        self.select_button = ctk.CTkButton(
+            self.sidebar, 
+            text="📐 Выбрать область", 
+            command=self.start_select_red_box, 
+            corner_radius=10, 
+            font=("Segoe UI", 13, "bold"),
+            fg_color=SECONDARY_COLOR,
+            hover_color="#3a3a3a",
+            height=40,
+            border_width=1,
+            border_color=INPUT_BORDER
+        )
+        self.select_button.pack(pady=(0, 12), padx=15, fill="x")
+        
+        self.clear_coords_button = ctk.CTkButton(
+            self.sidebar,
+            text="🗑 Очистить координаты",
             command=self.clear_coordinates,
-            fg_color="#a83232",
-            corner_radius=10
+            fg_color=ERROR_COLOR,
+            hover_color="#ff3838",
+            corner_radius=10,
+            font=("Segoe UI", 13, "bold"),
+            height=40,
+            border_width=0
         )
-        self.clear_coords_button.pack(pady=(10, 20), padx=20, fill="x")
+        self.clear_coords_button.pack(pady=(0, 20), padx=15, fill="x")
 
-        self.link_label = customtkinter.CTkLabel(
+        self.link_label = tk.Label(
             self.sidebar,
-            text="Telegram\n",
-            font=("Segoe UI", 12, "underline"),  
-            text_color="#888",
+            text="Telegram",
+            font=("Segoe UI", 11, "underline"),
+            fg=TEXT_COLOR,
+            bg=SIDEBAR_COLOR,
+            cursor="hand2",
         )
-        self.link_label.pack(side="bottom", pady=20)
-        
+        self.link_label.pack(side="bottom", pady=(0, 25))
         self.link_label.bind("<Button-1>", self.open_telegram_link)
+        self.link_label.bind("<Enter>", lambda e: self.link_label.config(fg=HOVER_COLOR))
+        self.link_label.bind("<Leave>", lambda e: self.link_label.config(fg=ACCENT_COLOR))
         
-        self.main_frame = customtkinter.CTkFrame(self, corner_radius=15, fg_color="#1c1c1c")
-        self.main_frame.pack(side="right", expand=True, fill="both", padx=0, pady=0)
-
-        self.title_label = customtkinter.CTkLabel(
-            self.main_frame,
-            text="",
-            font=("Segoe UI", 22, "bold"),
-            text_color="#FFFFFF"
+        self.main_frame = ctk.CTkFrame(
+            self.main_container, 
+            width=180, 
+            corner_radius=0, 
+            fg_color=MAIN_COLOR, 
+            border_width=0
         )
-        self.title_label.pack(pady=(20, 10))
+        self.main_frame.pack(side="right", expand=True, fill="both", padx=(5, 0), pady=0)
+
+        self.title_label = ctk.CTkLabel(
+            self.main_frame,
+            text="⚙️ Панель управления",
+            font=("Segoe UI", 20, "bold"),
+            text_color=TEXT_COLOR,
+            cursor="fleur"
+        )
+        self.title_label.pack(pady=(25, 15))
+        self.title_label.bind("<ButtonPress-1>", self.start_move)
+        self.title_label.bind("<B1-Motion>", self.do_move)
+        
+        license_frame = ctk.CTkFrame(
+            self.main_frame,
+            fg_color=CARD_COLOR,
+            corner_radius=8,
+            border_width=1,
+            border_color=INPUT_BORDER
+        )
+        license_frame.pack(pady=(0, 15), padx=20, fill="x")
         
         if self.license_expiry_date:
-            self.license_label = customtkinter.CTkLabel(
-                self.main_frame,  
-                text=f"Лицензия до: {self.license_expiry_date.strftime('%d-%m-%Y')}",
-                font=("Segoe UI", 12),
-                text_color="#FFFFFF"
+            self.license_label = ctk.CTkLabel(
+                license_frame,  
+                text=f"✅ Лицензия до: {self.license_expiry_date.strftime('%d-%m-%Y')}",
+                font=("Segoe UI", 11, "bold"),
+                text_color=ACCENT_COLOR
             )
         else:
-            self.license_label = customtkinter.CTkLabel(
-                self.main_frame,  
-                text="Лицензия не найдена",
-                font=("Segoe UI", 12),
-                text_color="#FF0000"
+            self.license_label = ctk.CTkLabel(
+                license_frame,  
+                text="❌ Лицензия не найдена",
+                font=("Segoe UI", 11, "bold"),
+                text_color=ERROR_COLOR
             )
-        
-       
-        self.license_label.place(
-            x=self.main_frame.winfo_width() - self.license_label.winfo_width() - -360,  
-            y=10 
-        )
-        
-        self.close_button = tk.Label(
-            self,
-            text="✖",
-            font=("Segoe UI", 14, "bold"),
-            bg="#1e1e1e",    
-            fg="#ffffff",
-            cursor="hand2"
-        )
-         
-        self.update_idletasks()  
-        self.close_button.place(
-            x=self.winfo_width() - -500, 
-            y=10,
-            width=30,
-            height=30
-        )
-        
-        self.close_button.bind("<Enter>", lambda e: self.close_button.config(bg="#E74C3C"))
-        self.close_button.bind("<Leave>", lambda e: self.close_button.config(bg="#aaaaaa"))
-        
-        self.close_button.bind("<Button-1>", lambda e: self.destroy())
-        self.status_label = customtkinter.CTkLabel(
-            self.main_frame,
-            textvariable=self.status_text,
-            font=("Segoe UI", 16),
-        )
-        self.status_label.pack(pady=(20, 10))
+        self.license_label.pack(pady=8, padx=10)
 
-        self.cooldown_label = customtkinter.CTkLabel(
-            self.main_frame, textvariable=self.cooldown_label_text,
-            font=("Segoe UI", 14),
+        self.close_button = tk.Label(
+            self.main_container,
+            text="✕",
+            font=("Segoe UI", 18, "bold"),
+            bg=MAIN_COLOR,    
+            fg=SUBTEXT_COLOR,
+            cursor="hand2",
+            width=2,
+            height=1
+        )
+        
+        def update_close_button_position(event=None):
+            try:
+                self.update_idletasks()
+                self.close_button.place(
+                    x=self.main_container.winfo_width() - 30, 
+                    y=8,
+                    width=25,
+                    height=25
+                )
+            except:
+                pass
+        
+        try:
+            self.after(100, update_close_button_position)
+        except:
+            pass
+        self.main_container.bind("<Configure>", update_close_button_position)
+        
+        self.close_button.bind("<Enter>", lambda e: self.close_button.config(bg=ERROR_COLOR, fg="white"))
+        self.close_button.bind("<Leave>", lambda e: self.close_button.config(bg=MAIN_COLOR, fg=SUBTEXT_COLOR))
+        self.close_button.bind("<Button-1>", lambda e: self.on_close())
+
+        status_frame = ctk.CTkFrame(
+            self.main_frame,
+            fg_color=CARD_COLOR,
+            corner_radius=10,
+            border_width=1,
+            border_color=INPUT_BORDER
+        )
+        status_frame.pack(pady=(0, 15), padx=20, fill="x")
+        
+        self.status_label = ctk.CTkLabel(
+            status_frame,
+            textvariable=self.status_text,
+            font=("Segoe UI", 15, "bold"),
+            text_color=TEXT_COLOR
+        )
+        self.status_label.pack(pady=12)
+
+        self.cooldown_label = ctk.CTkLabel(
+            status_frame, 
+            textvariable=self.cooldown_label_text,
+            font=("Segoe UI", 13, "bold"),
             text_color=ACCENT_COLOR,
         )
-        self.cooldown_label.pack(pady=(0, 10))
+        self.cooldown_label.pack(pady=(0, 12))
 
-        self.delay_label = customtkinter.CTkLabel(
+        delay_frame = ctk.CTkFrame(
             self.main_frame,
-            text="Задержка перед флудом (1–4 сек):",
-            font=("Segoe UI", 13),
-            text_color="#FFFFFF"
+            fg_color=CARD_COLOR,
+            corner_radius=10,
+            border_width=1,
+            border_color=INPUT_BORDER
         )
-        self.delay_label.pack(pady=(5, 2))
+        delay_frame.pack(pady=(0, 15), padx=20, fill="x")
+        
+        self.delay_label = ctk.CTkLabel(
+            delay_frame,
+            text="⏱ Задержка перед флудом (1–4 сек):",
+            font=("Segoe UI", 12, "bold"),
+            text_color=TEXT_COLOR
+        )
+        self.delay_label.pack(pady=(12, 8))
 
-        self.delay_entry = customtkinter.CTkEntry(self.main_frame, width=120)
+        def only_numbers(char):
+            if char == "":
+                return True 
+            try:
+                float(char)  
+                return True
+            except ValueError:
+                return False
+        
+        vcmd = self.register(only_numbers)
+        
+        entry_frame = ctk.CTkFrame(delay_frame, fg_color="transparent")
+        entry_frame.pack(pady=(0, 12), padx=15)
+        
+        self.delay_entry = ctk.CTkEntry(
+            entry_frame,
+            width=150,
+            font=("Segoe UI", 13, "bold"),
+            fg_color=INPUT_BG,
+            border_color=INPUT_BORDER,
+            border_width=2,
+            corner_radius=8,
+            text_color=TEXT_COLOR,
+            validate="key",
+            validatecommand=(vcmd, "%P")
+        )
         self.delay_entry.insert(0, str(self.delay_before_spam))
-        self.delay_entry.bind("<B1-Motion>", lambda e: "break") 
-        self.delay_entry.pack(pady=(0, 10))
-
-        self.set_delay_button = customtkinter.CTkButton(
-            self.main_frame, text="✅ Установить задержку", command=self.set_delay, height=40
+        self.delay_entry.pack(side="left", padx=(0, 10))
+        
+        self.set_delay_button = ctk.CTkButton(
+            entry_frame, 
+            text="✅ Установить", 
+            command=self.set_delay, 
+            height=35, 
+            width=140,
+            font=("Segoe UI", 12, "bold"),
+            fg_color=BUTTON_PRIMARY,
+            hover_color=BUTTON_PRIMARY_HOVER,
+            corner_radius=8,
+            border_width=0
         )
-        self.set_delay_button.pack(pady=(0, 15))
-
-        self.log_box = customtkinter.CTkTextbox(
-            self.main_frame, width=420, height=220, corner_radius=15, fg_color="#2a2a2a"
+        self.set_delay_button.pack(side="left")
+        
+        log_container = ctk.CTkFrame(
+            self.main_frame,
+            fg_color=CARD_COLOR,
+            corner_radius=10,
+            border_width=1,
+            border_color=INPUT_BORDER
         )
-        self.log_box.pack(pady=10)
-        self.log_box.insert("end", "Готов к работе...\n")
+        log_container.pack(pady=(0, 10), padx=20, fill="both", expand=True)
+        
+        log_title = ctk.CTkLabel(
+            log_container,
+            text="📋 Лог активности",
+            font=("Segoe UI", 12, "bold"),
+            text_color=TEXT_COLOR
+        )
+        log_title.pack(pady=(10, 8), anchor="w", padx=15)
+        
+        self.log_box = ctk.CTkTextbox(
+            log_container, 
+            width=420, 
+            height=250, 
+            corner_radius=8, 
+            fg_color=INPUT_BG, 
+            border_color=INPUT_BORDER,
+            border_width=1,
+            font=("Consolas", 11),
+            text_color="#00ff88",
+            wrap="word"
+        )
+        self.log_box.pack(pady=(0, 10), padx=15, fill="both", expand=True)
+        self.log_box.insert("end", "🚀 Готов к работе...\n")
         self.log_box.configure(state="disabled")
         
         self.log_box.bind("<Button-1>", lambda e: "break")  
@@ -368,25 +892,44 @@ class AutoPavilionApp(customtkinter.CTk):
         self.log_box.bind("<Key>", lambda e: "break")  
         self.log_box.bind("<FocusIn>", lambda e: self.focus())  
 
-        self.rectangle_canvas = tkinter.Canvas(
+        canvas_container = ctk.CTkFrame(
             self.main_frame,
-            width=520,
-            height=140,
-            bg="#0e1113",
-            highlightthickness=1,
-            highlightbackground="#333",
+            fg_color=CARD_COLOR,
+            corner_radius=10,
+            border_width=1,
+            border_color=INPUT_BORDER
         )
-        self.rectangle_canvas.pack(pady=(10, 10))
+        canvas_container.pack(pady=(0, 15), padx=20, fill="x")
+        
+        canvas_title = ctk.CTkLabel(
+            canvas_container,
+            text="📊 Предпросмотр области",
+            font=("Segoe UI", 12, "bold"),
+            text_color=TEXT_COLOR
+        )
+        canvas_title.pack(pady=(8, 5), anchor="w", padx=15)
+        
+        self.rectangle_canvas = tk.Canvas(
+            canvas_container,
+            width=520,
+            height=100,
+            bg=INPUT_BG,
+            highlightthickness=1,
+            highlightbackground=INPUT_BORDER,
+            relief="flat",
+            borderwidth=0
+        )
+        self.rectangle_canvas.pack(pady=(0, 10), padx=15, fill="x")
         
         self.load_coordinates() 
-        self.draw_rectangle_preview() 
+        self.draw_rectangle_preview()
     
     def custom_showinfo(title, message):
         window = ctk.CTkToplevel()
         window.title(title)
         window.geometry("400x200")
         window.resizable(False, False)
-        window.configure(fg_color=BG_COLOR)  # твой тёмный фон
+        window.configure(fg_color=BG_COLOR)
     
         label = ctk.CTkLabel(
             window, 
@@ -407,7 +950,6 @@ class AutoPavilionApp(customtkinter.CTk):
         )
         ok_button.pack(pady=10)
     
-        # Сделать модальным (блокирует родительское окно)
         window.grab_set()
         window.focus_set()
         window.wait_window()
@@ -423,9 +965,8 @@ class AutoPavilionApp(customtkinter.CTk):
         self.log_box.config(state=tk.DISABLED)        
 
     def on_close(self):
-        if tkinter.simpledialog.askokcancel("Выход", "Вы уверены, что хотите выйти?"):
-            self.is_running = False  
-            self.destroy()     
+        self.is_running = False  
+        self.destroy()     
 
     def toggle_script(self):
         if self.is_running:
@@ -435,20 +976,24 @@ class AutoPavilionApp(customtkinter.CTk):
 
     def start_script(self):
         if not self.red_box_coordinates:
-            messagebox.showerror("Ошибка", "Пожалуйста, выберите область экрана!")
+            show_custom_message(
+                title="Ошибка",
+                message="\n\n\nПожалуйста, выберите область экрана!",
+                msg_type="error"
+            )
             return
 
         self.is_running = True
-        self.status_text.set("\n\nСкрипт запущен ✅")
-        self.start_button.configure(text="⏹ Остановить", fg_color=ACCENT_COLOR)
-        self.log("Скрипт запущен...")
+        self.status_text.set("\n\n✅ Скрипт запущен")
+        self.start_button.configure(text="⏹ Остановить", fg_color=ERROR_COLOR, hover_color="#ff3838")
+        self.log("🚀 Скрипт запущен...")
         threading.Thread(target=self.run_automation, daemon=True).start()
 
     def stop_script(self):
         self.is_running = False
-        self.start_button.configure(text="▶ Запустить", fg_color="#3498db")
-        self.status_text.set("\n\nСкрипт остановлен ❌")
-        self.log("Работа остановлена пользователем")
+        self.start_button.configure(text="▶ Запустить", fg_color=BUTTON_PRIMARY, hover_color=BUTTON_PRIMARY_HOVER)
+        self.status_text.set("\n\n❌ Скрипт остановлен")
+        self.log("⏸ Работа остановлена пользователем")
         self.stop_spam()
         self.initial_seconds = None
         self.cooldown_timer_active = False
@@ -466,7 +1011,7 @@ class AutoPavilionApp(customtkinter.CTk):
                 screenshot = ImageGrab.grab(bbox=(x1, y1, x2, y2))
                 time_text = pytesseract.image_to_string(screenshot, config='--psm 6', lang='rus').strip()
 
-                self.log(f"{time_text}")
+                #self.log(f"{time_text}")
 
                 match = re.search(r'(\d+(?:\.\d+)?)\s*сек', time_text)
                 if match:
@@ -474,12 +1019,12 @@ class AutoPavilionApp(customtkinter.CTk):
                     if self.initial_seconds is None:
                         self.initial_seconds = seconds
                         self.start_timer_and_spam(seconds)
-                        self.log(f"Обнаружено время: {seconds:.2f} сек")
+                        self.log(f"⏱ Обнаружено время: {seconds:.2f} сек")
                 elif "Вы аренд" in time_text:
                     self.stop_spam()
                     self.stop_script()
-                    self.status_text.set("Павильон арендован! 🏠")
-                    self.log("Павильон арендован!")
+                    self.status_text.set("🏠 Павильон арендован!")
+                    self.log("🎉 Павильон арендован!")
                     self.initial_seconds = None
                     self.update_cooldown_label("Время вышло")
 
@@ -487,7 +1032,7 @@ class AutoPavilionApp(customtkinter.CTk):
 
             except Exception as e:
                 self.status_text.set(f"Ошибка: {e}")
-                self.log(f"Ошибка: {e}")
+                self.log(f"❌ Ошибка: {e}")
                 self.stop_script()
 
     def start_timer_and_spam(self, seconds):
@@ -503,7 +1048,7 @@ class AutoPavilionApp(customtkinter.CTk):
 
         while time.time() - start_time < time_to_spam and self.is_running:
             remaining_time = time_to_spam - (time.time() - start_time)
-            self.update_cooldown_label(f"До слёта: {remaining_time:.1f} сек")
+            self.update_cooldown_label(f"⏳ До слёта: {remaining_time:.1f} сек")
             time.sleep(0.1)
 
         if self.is_running:
@@ -524,7 +1069,7 @@ class AutoPavilionApp(customtkinter.CTk):
             pydirectinput.press("enter")
             pydirectinput.PAUSE = 0.02
         except Exception as e:
-            self.log(f"Ошибка во флуде: {e}")
+            self.log(f"❌ Ошибка во флуде: {e}")
             self.stop_spam()
             self.stop_script()
 
@@ -542,22 +1087,22 @@ class AutoPavilionApp(customtkinter.CTk):
 
     def create_overlay(self): 
         self.selecting_area = True
-        self.overlay = tkinter.Toplevel(self)
+        self.overlay = tk.Toplevel(self)
         self.overlay.attributes("-fullscreen", True)
         self.overlay.attributes("-alpha", 0.2)
         self.overlay.attributes("-topmost", True)
         self.overlay.overrideredirect(True)
     
-        self.canvas = tkinter.Canvas(self.overlay, bg="white", highlightthickness=2, highlightbackground="black")
-        self.canvas.pack(fill=tkinter.BOTH, expand=True)
+        self.canvas = tk.Canvas(self.overlay, bg="white", highlightthickness=2, highlightbackground="black")
+        self.canvas.pack(fill=tk.BOTH, expand=True)
     
         rgb = self.overlay.winfo_rgb('#000000')  
         hex_to_rgb = '#%02x%02x%02x' % (rgb[0] // 256, rgb[1] // 256, rgb[2] // 256)
     
-        self.info_frame = tkinter.Frame(self.canvas, bg=hex_to_rgb)
+        self.info_frame = tk.Frame(self.canvas, bg=hex_to_rgb)
         self.info_frame.place(relx=0.5, rely=0.5, anchor='center')  
     
-        self.info_label = tkinter.Label(self.info_frame,
+        self.info_label = tk.Label(self.info_frame,
                                         text="Как выбрать область сканирования:\n1. Зажмите левую кнопку мыши\n2. Перетащите курсор, чтобы выбрать область\n3. Отпустите кнопку мыши для сохранения\n• Нажмите ESC для отмены",
                                         fg='white', bg=hex_to_rgb, justify='left', font=("Segoe UI", 12))
         self.info_label.pack(padx=20, pady=25)
@@ -618,7 +1163,11 @@ class AutoPavilionApp(customtkinter.CTk):
             return
         end_x, end_y = event.x_root, event.y_root
         if abs(end_x - self.start_x) < 5 or abs(end_y - self.start_y) < 5:
-            messagebox.showerror("Ошибка", "Слишком малая область!")
+            show_custom_message(
+                title="Ошибка",
+                message="Слишком малая область! Выберите область побольше.",
+                msg_type="error"
+            )
             self.on_overlay_close()
             return
 
@@ -631,7 +1180,7 @@ class AutoPavilionApp(customtkinter.CTk):
         self.save_coordinates()
         self.on_overlay_close()
         self.draw_rectangle_preview()
-        self.log(f"Выбрана область: {self.red_box_coordinates}")
+        self.log(f"📐 Выбрана область: {self.red_box_coordinates}")
 
     def on_overlay_close(self, event=None):
         self.selecting_area = False
@@ -649,21 +1198,21 @@ class AutoPavilionApp(customtkinter.CTk):
                         print("Координаты загружены:", self.red_box_coordinates)
             except Exception as e:
                 print(f"Ошибка загрузки координат: {e}")
-                self.log(f"Ошибка загрузки координат: {e}") 
+                self.log(f"❌ Ошибка загрузки координат: {e}") 
 
     def save_coordinates(self): 
         try:
             data = {"coordinates": list(self.red_box_coordinates)}
             with open(COORDINATES_FILE, "w") as f:
                 json.dump(data, f)
-            self.log("Координаты сохранены") 
+            self.log("💾 Координаты сохранены") 
         except Exception as e:
-            self.log(f"Ошибка сохранения координат: {e}")
+            self.log(f"❌ Ошибка сохранения координат: {e}")
 
     def clear_coordinates(self): 
         self.red_box_coordinates = None
         #self.status_text.set("Координаты очищены.")
-        self.log("Координаты очищены")
+        self.log("🗑 Координаты очищены")
        # self.rectangle_canvas.delete("all")
         self.draw_rectangle_preview()
        # self.save_coordinates()
@@ -682,9 +1231,9 @@ class AutoPavilionApp(customtkinter.CTk):
                 cx1, cy1 = int(x1 * scale_x), int(y1 * scale_y)
                 cx2, cy2 = int(x2 * scale_x), int(y2 * scale_y)
 
-                self.rectangle_canvas.create_rectangle(cx1, cy1, cx2, cy2, outline=RECTANGLE_COLOR, width=2)
+                self.rectangle_canvas.create_rectangle(cx1, cy1, cx2, cy2, outline=RECTANGLE_COLOR, width=3, fill="", dash=(5, 5))
         except Exception as e:
-            self.log(f"Ошибка предпросмотра: {e}")
+            self.log(f"❌ Ошибка предпросмотра: {e}")
 
     def update_cooldown_label(self, text): 
         self.cooldown_label_text.set(text)
@@ -694,11 +1243,20 @@ class AutoPavilionApp(customtkinter.CTk):
             val = float(self.delay_entry.get())
             if 1 <= val < 4:
                 self.delay_before_spam = val
-                self.log(f"Задержка установлена: {val:.1f} сек")
+                self.log(f"✅ Задержка установлена: {val:.2f} сек")
             else:
-                messagebox.showerror("Ошибка", "Введите значение от 1 до 4 сек.")
+                show_custom_message(
+                    title="Ошибка",
+                    message="Введите значение от 1 до 4 сек.",
+                    msg_type="error"
+                )
         except ValueError:
-            messagebox.showerror("Ошибка", "Введите число.")
+            show_custom_message(
+                title="Ошибка",
+                message="Введите корректное число.",
+                msg_type="error"
+            )
+            
 
     def log(self, text: str):
         self.log_box.configure(state="normal")     
@@ -706,16 +1264,37 @@ class AutoPavilionApp(customtkinter.CTk):
         self.log_box.see("end")                  
         self.log_box.configure(state="disabled")
         
-    def on_close(self):
-        self.is_running = False
-        self.destroy()
+    
         
 if __name__ == "__main__":
-    root = tkinter.Tk()
+    temp_root = ctk.CTk()
+    temp_root.withdraw()
+    temp_root.attributes("-alpha", 0)
+    temp_root.update()
+    
+    root = tk.Tk()
     root.withdraw()
     auto_update()
-    check_license()  
-    root.destroy() 
-
+    
+    check_and_close_extreme_injector()
+    
+    check_license()
+    
+    try:
+        root.update()
+        root.update_idletasks()
+        root.destroy()
+    except Exception as e:
+        print(f"Ошибка при уничтожении root: {e}")
+    
+    try:
+        temp_root.update()
+        temp_root.update_idletasks()
+        time.sleep(0.1)
+        temp_root.destroy()
+    except Exception as e:
+        print(f"Ошибка при уничтожении temp_root: {e}")
+    
     app = AutoPavilionApp()
     app.mainloop()
+
