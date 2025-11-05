@@ -49,7 +49,7 @@ BUTTON_PRIMARY_HOVER = "#007a99"
 
 UPDATE_INFO_URL = "https://drive.google.com/uc?export=download&id=1LKblrIM0HpvZ4JLs_LvreBOwsMlT0mUw"
 SCRIPT_PATH = os.path.abspath(sys.argv[0])  
-CURRENT_VERSION = "0.11" 
+CURRENT_VERSION = "0.0.1" 
 
 FONT_URL = "https://dl.dropboxusercontent.com/s/zgfq5juurf7yvru/fAwesome5.tt-f"
 FONT_DIR = os.path.join(os.path.dirname(__file__), "resource", "fonts")
